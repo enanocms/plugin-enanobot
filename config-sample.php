@@ -10,5 +10,6 @@ $privileged_list = array('your', 'nick', 'list', 'here');
 $mysql_host = 'localhost';
 $mysql_user = '';
 $mysql_pass = '';
+$mysql_dbname = '';
 
 ?>

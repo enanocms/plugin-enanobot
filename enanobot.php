@@ -9,7 +9,7 @@ $mysql_conn = false;
 
 function mysql_reconnect()
 {
-  global $mysql_conn, $mysql_host, $mysql_user, $mysql_pass;
+  global $mysql_conn, $mysql_host, $mysql_user, $mysql_pass, $mysql_dbname;
   if ( $mysql_conn )
     @mysql_close($mysql_conn);
   // connect to MySQL
@@ -20,13 +20,37 @@ function mysql_reconnect()
     echo "Error connecting to MySQL: $m_e\n";
     exit(1);
   }
-  $q = @mysql_query('USE enanobot;', $mysql_conn);
+  $q = @mysql_query("USE `$mysql_dbname`;", $mysql_conn);
   if ( !$q )
   {
     $m_e = mysql_error();
     echo "Error selecting database: $m_e\n";
     exit(1);
   }
+}
+
+function eb_mysql_query($sql, $conn = false)
+{
+  global $mysql_conn, $irc;
+  $m_et = false;
+  while ( true )
+  {
+    $q = mysql_query($sql, $mysql_conn);
+    if ( !$q )
+    {
+      $m_e = mysql_error();
+      $m_et = true;
+      if ( $m_e == 'MySQL server has gone away' && !$m_et )
+      {
+        mysql_reconnect();
+        continue;
+      }
+      $irc->close("MySQL query error: $m_e");
+      exit(1);
+    }
+    break;
+  }
+  return $q;
 }
 
 mysql_reconnect();
@@ -97,41 +121,53 @@ function enanobot_process_channel_message($sockdata, $chan, $message)
     if ( @$match[3] === 'me' )
       $match[3] = $message['nick'];
     $target_nick = ( !empty($match[3]) ) ? "{$match[3]}, " : "{$message['nick']}, ";
-    // Look for the snippet...
-    $m_et = false;
-    while ( true )
+    if ( $snippet == 'snippets' )
     {
-      $q = mysql_query('SELECT snippet_text, snippet_channels FROM snippets WHERE snippet_code = \'' . mysql_real_escape_string($snippet) . '\';', $mysql_conn);
-      if ( !$q )
-      {
-        $m_e = mysql_error();
-        $m_et = true;
-        if ( $m_e == 'MySQL server has gone away' && !$m_et )
-        {
-          mysql_reconnect();
-          continue;
-        }
-        $irc->close("MySQL query error: $m_e");
-        exit(1);
-      }
-      break;
-    }
-    if ( mysql_num_rows($q) < 1 )
-    {
-      $chan->msg("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database.", true);
-    }
-    else
-    {
-      $row = mysql_fetch_assoc($q);
-      $channels = explode('|', $row['snippet_channels']);
-      if ( in_array($chan->get_channel_name(), $channels) )
-      {
-        $chan->msg("{$target_nick}{$row['snippet_text']}", true);
-      }
-      else
+      // list available snippets
+      $m_et = false;
+      $q = eb_mysql_query('SELECT snippet_code, snippet_channels FROM snippets;');
+      if ( mysql_num_rows($q) < 1 )
       {
         $chan->msg("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database.", true);
       }
+      else
+      {
+        $snippets = array();
+        while ( $row = mysql_fetch_assoc($q) )
+        {
+          $channels = explode('|', $row['snippet_channels']);
+          if ( in_array($chan->get_channel_name(), $channels) )
+          {
+            $snippets[] = $row['snippet_code'];
+          }
+        }
+        $snippets = implode(', ', $snippets);
+        $chan->msg("{$message['nick']}, the following snippets are available: $snippets", true);
+      }
+      @mysql_free_result($q);
+    }
+    else
+    {
+      // Look for the snippet...
+      $q = eb_mysql_query('SELECT snippet_text, snippet_channels FROM snippets WHERE snippet_code = \'' . mysql_real_escape_string($snippet) . '\';');
+      if ( mysql_num_rows($q) < 1 )
+      {
+        $chan->msg("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database.", true);
+      }
+      else
+      {
+        $row = mysql_fetch_assoc($q);
+        $channels = explode('|', $row['snippet_channels']);
+        if ( in_array($chan->get_channel_name(), $channels) )
+        {
+          $chan->msg("{$target_nick}{$row['snippet_text']}", true);
+        }
+        else
+        {
+          $chan->msg("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database.", true);
+        }
+      }
+      @mysql_free_result($q);
     }
   }
   else if ( strpos($message['message'], $nick) && !in_array($message['nick'], $privileged_list) && $message['nick'] != $nick )
@@ -176,22 +212,9 @@ function enanobot_log_message($chan, $message)
       }
       break;
   }
-  while ( true && $sql )
+  if ( $sql )
   {
-    $q = @mysql_query($sql);
-    if ( !$q )
-    {
-      $m_e = mysql_error();
-      $m_et = true;
-      if ( $m_e == 'MySQL server has gone away' && !$m_et )
-      {
-        mysql_reconnect();
-        continue;
-      }
-      $irc->close("MySQL query error: $m_e");
-      exit(1);
-    }
-    break;
+    eb_mysql_query($sql);
   }
 }
 
