@@ -1,0 +1,77 @@
+EnanoBot - the Enano CMS IRC bot
+Copyright (c) 2008 Dan Fuhry
+
+    This program is free software; you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by the Free
+    Software Foundation; either version 2 of the License, or (at your option)
+    any later version.
+
+    This program is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+    more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc., 59
+    Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+EnanoBot is a bot I wrote for the Enano CMS IRC channel in #enano on freenode. It's
+written in CLI PHP and you need to have shell access, a MySQL server, and a host
+with a very permissive TOU or a reliable home connection to run this bot.
+
+FEATURES
+--------------------
+
+   - Basic logging
+   - Privileged users - automatically opped and can speak through the bot, among
+     other things
+   - Snippets - use for automated help
+   - Web-based log viewer
+   - Web-based snippet manager
+
+REQUIREMENTS
+--------------------
+
+  - MySQL server
+  - SSH access
+  - PHP on your shell server
+  - Working Enano installation
+  - The MySQL user Enano uses needs to have access to EnanoBot's database if it's
+    not the same one that you're using for Enano
+
+NOTE ON ISP RESTRICTIONS
+--------------------
+
+A lot of ISPs (webhosts) prohibit running IRC bots from your shell account. Check
+with their terms of use before you enable this thing. Because this project is under
+the GPL there is of course no warranty for it, and nobody from the Enano Project
+can be responsible for your use of this bot. So make sure it's OK before you try to
+run it.
+
+INSTALLING
+--------------------
+
+Copy config-sample.php to config.php and edit it. Then put irclogs.php and
+snippets.php wherever your Enano installation is. You could probably modify snippets
+to not use Enano pretty easily but securing it would be your job. Edit both irclogs
+and snippets to set the EnanoBot root directory (where your config and enanobot.php
+are). DO NOT put enanobot.php and config.php in your document root - you WILL get
+hacked.
+
+To start it, run:
+
+  $ php enanobot.php
+
+You may find it useful to make sure that it restarts if it dies. Once you've started
+the bot and confirmed that it works, do something like: (and this is really hackish)
+
+  $ while true; do php enanobot.php; done &
+
+This all assumes that you're on a Unix-based server. Things will be different on
+Windows.
+
+AUTHOR
+--------------------
+
+Dan Fuhry <dan@enanocms.org>
+
