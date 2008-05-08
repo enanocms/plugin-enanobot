@@ -39,12 +39,12 @@ function eb_mysql_query($sql, $conn = false)
     if ( !$q )
     {
       $m_e = mysql_error();
-      $m_et = true;
-      if ( $m_e == 'MySQL server has gone away' && !$m_et )
+      if ( strpos($m_e, 'gone away') && !$m_et )
       {
         mysql_reconnect();
         continue;
       }
+      $m_et = true;
       $irc->close("MySQL query error: $m_e");
       exit(1);
     }
@@ -192,8 +192,11 @@ function enanobot_log_message($chan, $message)
   switch($message['action'])
   {
     case 'PRIVMSG':
-      $sql = "INSERT INTO irclog(channel, day, nick, timestamp, line) VALUES
-                ( '$chan_db', '$day', '$nick_db', '$time', '$line_db' );";
+      if ( substr($line_db, 0, 5) != '[off]' )
+      {
+        $sql = "INSERT INTO irclog(channel, day, nick, timestamp, line) VALUES
+                  ( '$chan_db', '$day', '$nick_db', '$time', '$line_db' );";
+      }
       break;
     case 'JOIN':
       $sql = "INSERT INTO irclog(channel, day, nick, timestamp, line) VALUES
