@@ -1,5 +1,5 @@
 <?php
-// define('LIBIRC_DEBUG', '');
+define('LIBIRC_DEBUG', '');
 require('libirc.php');
 require('config.php');
 
@@ -11,7 +11,13 @@ function mysql_reconnect()
 {
   global $mysql_conn, $mysql_host, $mysql_user, $mysql_pass, $mysql_dbname;
   if ( $mysql_conn )
+  {
     @mysql_close($mysql_conn);
+    if ( defined('LIBIRC_DEBUG') )
+    {
+      echo "< > Reconnecting to MySQL\n";
+    }
+  }
   // connect to MySQL
   $mysql_conn = @mysql_connect($mysql_host, $mysql_user, $mysql_pass);
   if ( !$mysql_conn )
