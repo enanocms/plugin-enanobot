@@ -5,7 +5,53 @@
  * GPL and no warranty, see the LICENSE file for more info
  */
 
-// define('LIBIRC_DEBUG', '');
+// parse command line
+if ( isset($argv[1]) )
+{
+  $arg =& $argv[1];
+  if ( $arg == '--daemon' || $arg == '-d' )
+  {
+    // attempt to fork...
+    if ( function_exists('pcntl_fork') )
+    {
+      $pid = pcntl_fork();
+      if ( $pid == -1 )
+      {
+        echo "Forking process failed.\n";
+        exit(1);
+      }
+      else if ( $pid )
+      {
+        echo "EnanoBot daemon started, pid $pid\n";
+        exit(0);
+      }
+      else
+      {
+        // do nothing, just continue.
+      }
+    }
+    else
+    {
+      echo "No pcntl support in PHP, continuing in foreground\n";
+    }
+  }
+  else if ( $arg == '-v' || $arg == '--verbose' )
+  {
+    define('LIBIRC_DEBUG', '');
+  }
+  else
+  {
+    echo <<<EOF
+Usage: {$argv[0]}
+Options:
+  -d, --daemon     Run in background (requires pcntl support)
+  -v, --verbose    Log communication to stdout (ignored if -d specified)
+  -h, --help       This help message
+
+EOF;
+    exit(1);
+  }
+}
 
 require('libirc.php');
 require('config.php');
