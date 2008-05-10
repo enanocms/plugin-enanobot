@@ -1,5 +1,12 @@
 <?php
-define('LIBIRC_DEBUG', '');
+
+/**
+ * EnanoBot - the Enano CMS IRC logging and help automation bot
+ * GPL and no warranty, see the LICENSE file for more info
+ */
+
+// define('LIBIRC_DEBUG', '');
+
 require('libirc.php');
 require('config.php');
 
@@ -61,23 +68,30 @@ function eb_mysql_query($sql, $conn = false)
 
 mysql_reconnect();
 
+$libirc_channels = array();
+
 $irc = new Request_IRC('irc.freenode.net');
 $irc->connect($nick, $user, $name, $pass);
 $irc->set_privmsg_handler('enanobot_privmsg_event');
-$enano = $irc->join('#enano', 'enanobot_channel_event_enano');
-$enano_dev = $irc->join('#enano-dev', 'enanobot_channel_event_enanodev');
-$irc->privmsg('ChanServ', 'OP #enano EnanoBot');
-$irc->privmsg('ChanServ', 'OP #enano-dev EnanoBot');
+
+foreach ( $channels as $channel )
+{
+  $libirc_channels[$channel] = $irc->join($channel, 'enanobot_channel_event');
+  $channel_clean = preg_replace('/^[#&]/', '', $channel);
+  $libirc_channels[$channel_clean] =& $libirc_channels[$channel];
+  $irc->privmsg('ChanServ', "OP $channel $nick");
+}
 
 $irc->event_loop();
 $irc->close();
 mysql_close($mysql_conn);
 
-function enanobot_channel_event_enano($sockdata, $chan)
+function enanobot_channel_event($sockdata, $chan)
 {
   global $irc, $nick, $mysql_conn, $privileged_list;
   $sockdata = trim($sockdata);
   $message = Request_IRC::parse_message($sockdata);
+  $channelname = $chan->get_channel_name();
   enanobot_log_message($chan, $message);
   switch ( $message['action'] )
   {
@@ -85,27 +99,8 @@ function enanobot_channel_event_enano($sockdata, $chan)
       // if a known op joins the channel, send mode +o
       if ( in_array($message['nick'], $privileged_list) )
       {
-        $chan->parent->put("MODE #enano +o {$message['nick']}\r\n");
+        $chan->parent->put("MODE $channelname +o {$message['nick']}\r\n");
       }
-      break;
-    case 'PRIVMSG':
-      enanobot_process_channel_message($sockdata, $chan, $message);
-      break;
-  }
-}
-
-function enanobot_channel_event_enanodev($sockdata, $chan)
-{
-  global $irc, $privileged_list;
-  $sockdata = trim($sockdata);
-  $message = Request_IRC::parse_message($sockdata);
-  enanobot_log_message($chan, $message);
-  switch ( $message['action'] )
-  {
-    case 'JOIN':
-      // if dandaman32 joins the channel, use mode +o
-      if ( in_array($message['nick'], $privileged_list) )
-        $chan->parent->put("MODE #enano-dev +o {$message['nick']}\r\n");
       break;
     case 'PRIVMSG':
       enanobot_process_channel_message($sockdata, $chan, $message);
@@ -229,14 +224,14 @@ function enanobot_log_message($chan, $message)
 
 function enanobot_privmsg_event($message)
 {
-  global $privileged_list, $irc;
+  global $privileged_list, $irc, $nick;
   static $part_cache = array();
   if ( in_array($message['nick'], $privileged_list) && $message['message'] == 'Suspend' && $message['action'] == 'PRIVMSG' )
   {
     foreach ( $irc->channels as $channel )
     {
       $part_cache[] = array($channel->get_channel_name(), $channel->get_handler());
-      $channel->msg("I've received a request to stop logging messages and responding to requests from {$message['nick']}. Don't forget to unsuspend me with /msg EnanoBot Resume when finished.", true);
+      $channel->msg("I've received a request to stop logging messages and responding to requests from {$message['nick']}. Don't forget to unsuspend me with /msg $nick Resume when finished.", true);
       $channel->part("Logging and presence suspended by {$message['nick']}", true);
     }
   }
@@ -257,10 +252,14 @@ function enanobot_privmsg_event($message)
     $irc->close("Remote bot shutdown ordered by {$message['nick']}", true);
     return 'BREAK';
   }
-  else if ( in_array($message['nick'], $privileged_list) && preg_match('/^\!echo-enano /', $message['message']) )
+  else if ( in_array($message['nick'], $privileged_list) && preg_match("/^\!echo-([^\007, \r\n\a\t]+) /", $message['message'], $match) )
   {
-    global $enano;
-    $enano->msg(preg_replace('/^\!echo-enano /', '', $message['message']), true);
+    global $libirc_channels;
+    $channel_name =& $match[1];
+    if ( isset($libirc_channels[$channel_name]) && is_object($libirc_channels[$channel_name]) )
+    {
+      $libirc_channels[$channel_name]->msg(preg_replace("/^\!echo-([^\007, \r\n\a\t]+) /", '', $message['message']), true);
+    }
   }
 }
 

@@ -11,5 +11,6 @@ $mysql_host = 'localhost';
 $mysql_user = '';
 $mysql_pass = '';
 $mysql_dbname = '';
+$channels = array('#mychan', '#yourchan', '#4chan');
 
 ?>
