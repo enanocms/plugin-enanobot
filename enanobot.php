@@ -1,5 +1,4 @@
 <?php
-
 /**
  * EnanoBot - the Enano CMS IRC logging and help automation bot
  * GPL and no warranty, see the LICENSE file for more info
@@ -53,12 +52,44 @@ EOF;
   }
 }
 
+$censored_words = array('cock', 'fuck', 'cuck', 'funt', 'cunt', 'bitch');
+$_shutdown = false;
+
+function eb_censor_words($text)
+{
+  // return $text;
+  
+  global $censored_words;
+  foreach ( $censored_words as $word )
+  {
+    $replacement = substr($word, 0, 1) . preg_replace('/./', '*', substr($word, 1));
+    while ( stristr($text, $word) )
+    {
+      $text = preg_replace("/$word/i", $replacement, $text);
+    }
+  }
+  return $text;
+}
+
 require('libirc.php');
+require('hooks.php');
 require('config.php');
 
 @ini_set('display_errors', 'on');
+error_reporting(E_ALL);
+
+// load modules
+foreach ( $modules as $module )
+{
+  $modulefile = "modules/$module.php";
+  if ( file_exists($modulefile) )
+  {
+    require($modulefile);
+  }
+}
 
 $mysql_conn = false;
+$doctor = array();
 
 function mysql_reconnect()
 {
@@ -116,7 +147,7 @@ mysql_reconnect();
 
 $libirc_channels = array();
 
-$irc = new Request_IRC('irc.freenode.net');
+$irc = new Request_IRC($server);
 $irc->connect($nick, $user, $name, $pass);
 $irc->set_privmsg_handler('enanobot_privmsg_event');
 
@@ -138,15 +169,16 @@ function enanobot_channel_event($sockdata, $chan)
   $sockdata = trim($sockdata);
   $message = Request_IRC::parse_message($sockdata);
   $channelname = $chan->get_channel_name();
-  enanobot_log_message($chan, $message);
+  
+  eval(eb_fetch_hook('event_raw_message'));
+  
   switch ( $message['action'] )
   {
     case 'JOIN':
-      // if a known op joins the channel, send mode +o
-      if ( in_array($message['nick'], $privileged_list) )
-      {
-        $chan->parent->put("MODE $channelname +o {$message['nick']}\r\n");
-      }
+      eval(eb_fetch_hook('event_join'));
+      break;
+    case 'PART':
+      eval(eb_fetch_hook('event_part'));
       break;
     case 'PRIVMSG':
       enanobot_process_channel_message($sockdata, $chan, $message);
@@ -158,113 +190,14 @@ function enanobot_process_channel_message($sockdata, $chan, $message)
 {
   global $irc, $nick, $mysql_conn, $privileged_list;
   
-  if ( preg_match('/^\!echo /', $message['message']) && in_array($message['nick'], $privileged_list) )
+  if ( strpos($message['message'], $nick) && !in_array($message['nick'], $privileged_list) && $message['nick'] != $nick )
   {
-    $chan->msg(preg_replace('/^\!echo /', '', $message['message']), true);
+    //$target_nick =& $message['nick'];
+    //$chan->msg("{$target_nick}, I'm only a bot. :-) You should probably rely on the advice of humans if you need further assistance.", true);
   }
-  else if ( preg_match('/^\![\s]*([a-z0-9_-]+)([\s]*\|[\s]*([^ ]+))?$/', $message['message'], $match) )
+  else
   {
-    $snippet =& $match[1];
-    if ( @$match[3] === 'me' )
-      $match[3] = $message['nick'];
-    $target_nick = ( !empty($match[3]) ) ? "{$match[3]}, " : "{$message['nick']}, ";
-    if ( $snippet == 'snippets' )
-    {
-      // list available snippets
-      $m_et = false;
-      $q = eb_mysql_query('SELECT snippet_code, snippet_channels FROM snippets;');
-      if ( mysql_num_rows($q) < 1 )
-      {
-        $chan->msg("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database.", true);
-      }
-      else
-      {
-        $snippets = array();
-        while ( $row = mysql_fetch_assoc($q) )
-        {
-          $channels = explode('|', $row['snippet_channels']);
-          if ( in_array($chan->get_channel_name(), $channels) )
-          {
-            $snippets[] = $row['snippet_code'];
-          }
-        }
-        $snippets = implode(', ', $snippets);
-        $chan->msg("{$message['nick']}, the following snippets are available: $snippets", true);
-      }
-      @mysql_free_result($q);
-    }
-    else
-    {
-      // Look for the snippet...
-      $q = eb_mysql_query('SELECT snippet_text, snippet_channels FROM snippets WHERE snippet_code = \'' . mysql_real_escape_string($snippet) . '\';');
-      if ( mysql_num_rows($q) < 1 )
-      {
-        $chan->msg("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database.", true);
-      }
-      else
-      {
-        $row = mysql_fetch_assoc($q);
-        $channels = explode('|', $row['snippet_channels']);
-        if ( in_array($chan->get_channel_name(), $channels) )
-        {
-          $chan->msg("{$target_nick}{$row['snippet_text']}", true);
-        }
-        else
-        {
-          $chan->msg("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database.", true);
-        }
-      }
-      @mysql_free_result($q);
-    }
-  }
-  else if ( strpos($message['message'], $nick) && !in_array($message['nick'], $privileged_list) && $message['nick'] != $nick )
-  {
-    $target_nick =& $message['nick'];
-    $chan->msg("{$target_nick}, I'm only a bot. :-) You should probably rely on the advice of humans if you need further assistance.", true);
-  }
-}
-
-function enanobot_log_message($chan, $message)
-{
-  global $nick;
-  
-  // Log the message
-  $chan_db = mysql_real_escape_string($chan->get_channel_name());
-  $nick_db = mysql_real_escape_string($message['nick']);
-  $line_db = mysql_real_escape_string($message['message']);
-  $day     = date('Y-m-d');
-  $time    = time();
-  $m_et = false;
-  $sql = false;
-  switch($message['action'])
-  {
-    case 'PRIVMSG':
-      if ( substr($line_db, 0, 5) != '[off]' )
-      {
-        $sql = "INSERT INTO irclog(channel, day, nick, timestamp, line) VALUES
-                  ( '$chan_db', '$day', '$nick_db', '$time', '$line_db' );";
-      }
-      break;
-    case 'JOIN':
-      $sql = "INSERT INTO irclog(channel, day, nick, timestamp, line) VALUES
-                ( '$chan_db', '$day', '', '$time', '$nick_db has joined $chan_db' );";
-      break;
-    case 'PART':
-      $sql = "INSERT INTO irclog(channel, day, nick, timestamp, line) VALUES
-                ( '$chan_db', '$day', '', '$time', '$nick_db has left $chan_db' );";
-      break;
-    case 'MODE':
-      list($mode, $target_nick) = explode(' ', $line_db);
-      if ( $message['nick'] != 'ChanServ' && $target_nick != $nick )
-      {
-        $sql = "INSERT INTO irclog(channel, day, nick, timestamp, line) VALUES
-                  ( '$chan_db', '$day', '', '$time', '$nick_db set mode $mode on $target_nick' );";
-      }
-      break;
-  }
-  if ( $sql )
-  {
-    eb_mysql_query($sql);
+    eval(eb_fetch_hook('event_channel_msg'));
   }
 }
 
@@ -277,7 +210,7 @@ function enanobot_privmsg_event($message)
     foreach ( $irc->channels as $channel )
     {
       $part_cache[] = array($channel->get_channel_name(), $channel->get_handler());
-      $channel->msg("I've received a request to stop logging messages and responding to requests from {$message['nick']}. Don't forget to unsuspend me with /msg $nick Resume when finished.", true);
+      $channel->msg("I've received a request from {$message['nick']} to stop responding to requests, messages, and activities. Don't forget to unsuspend me with /msg $nick Resume when finished.", true);
       $channel->part("Logging and presence suspended by {$message['nick']}", true);
     }
   }
@@ -295,17 +228,21 @@ function enanobot_privmsg_event($message)
   }
   else if ( in_array($message['nick'], $privileged_list) && $message['message'] == 'Shutdown' && $message['action'] == 'PRIVMSG' )
   {
+    $GLOBALS['_shutdown'] = true;
     $irc->close("Remote bot shutdown ordered by {$message['nick']}", true);
     return 'BREAK';
   }
-  else if ( in_array($message['nick'], $privileged_list) && preg_match("/^\!echo-([^\007, \r\n\a\t]+) /", $message['message'], $match) )
+  else if ( $message['action'] == 'PRIVMSG' )
   {
-    global $libirc_channels;
-    $channel_name =& $match[1];
-    if ( isset($libirc_channels[$channel_name]) && is_object($libirc_channels[$channel_name]) )
-    {
-      $libirc_channels[$channel_name]->msg(preg_replace("/^\!echo-([^\007, \r\n\a\t]+) /", '', $message['message']), true);
-    }
+    eval(eb_fetch_hook('event_privmsg'));
+  }
+  else
+  {
+    eval(eb_fetch_hook('event_other'));
   }
 }
 
+if ( $_shutdown )
+{
+  exit(2);
+}

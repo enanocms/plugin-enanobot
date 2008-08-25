@@ -112,43 +112,30 @@ class Request_IRC
     if ( !$this->sock )
       throw new Exception('Could not make socket connection to host.');
     
-    stream_set_timeout($this->sock, 5);
-    
-    // Wait for initial ident messages
-    while ( $msg = $this->get() )
-    {
-    }
+    stream_set_timeout($this->sock, 1);
     
     // Send nick and username
     $this->put("NICK $nick\r\n");
     $this->put("USER $username 0 * :$realname\r\n");
     
-    // Wait for response and end of motd
-    $motd = '';
-    while ( $msg = $this->get() )
+    // wait for a mode +i or end of the motd
+    while ( true )
     {
-      // Match particles
-      $msg = trim($msg);
-      $mc = preg_match('/^:([A-z0-9\.-]+) ([0-9]+) [A-z0-9_-]+ :(.+)$/', $msg, $match);
-      if ( !$mc )
+      $msg = $this->get();
+      if ( empty($msg) )
+        continue;
+      if ( ( strstr($msg, 'MODE') && strstr($msg, '+i') ) || strstr(strtolower($msg), 'end of /motd') )
       {
-        $mc = preg_match('/^:([A-z0-9_-]+)!([A-z0-9_-]+)@([A-z0-9_\.-]+) NOTICE [A-z0-9_-]+ :(.+)$/', $msg, $match);
-        if ( !$mc )
-          continue;
-        // Look for a response from NickServ
-        if ( $match[1] == 'NickServ' )
-        {
-          // Asking for auth?
-          if ( strpos($match[4], 'IDENTIFY') )
-          {
-            // Yes, send password
-            $this->privmsg('NickServ', "IDENTIFY $pass");
-          }
-        }
+        break;
       }
-      list(, $host, $stat, $msg) = $match;
-      $motd .= "$msg";
+      if ( preg_match('/^PING :(.+?)$/', $msg, $match) )
+      {
+        $this->put("PONG :{$match[1]}\r\n");
+      }
     }
+    
+    // identify to nickserv
+    $this->privmsg('NickServ', "IDENTIFY $pass");
     
     $this->nick = $nick;
     $this->user = $username;
@@ -222,11 +209,12 @@ class Request_IRC
       if ( preg_match('/^PING :(.+?)$/', $data_trim, $pmatch) )
       {
         $this->put("PONG :{$pmatch[1]}\r\n");
+        eval(eb_fetch_hook('event_ping'));
       }
       else if ( $match )
       {
         // Received PRIVMSG or other mainstream action
-        if ( $match['action'] == 'JOIN' )
+        if ( $match['action'] == 'JOIN' || $match['action'] == 'PART' )
           $channel =& $match['message'];
         else
           $channel =& $match['target'];
@@ -235,7 +223,7 @@ class Request_IRC
         {
           // Private message from user
           $result = $this->handle_privmsg($data);
-          stream_set_timeout($this->sock, 0xFFFFFFFE);
+          @stream_set_timeout($this->sock, 0xFFFFFFFE);
         }
         else if ( isset($this->channels[strtolower($channel)]) )
         {
@@ -243,7 +231,7 @@ class Request_IRC
           $chan =& $this->channels[strtolower($channel)];
           $func = $chan->get_handler();
           $result = @call_user_func($func, $data, $chan);
-          stream_set_timeout($this->sock, 0xFFFFFFFE);
+          @stream_set_timeout($this->sock, 0xFFFFFFFE);
         }
         if ( $result == 'BREAK' )
         {
@@ -397,13 +385,14 @@ class Request_IRC_Channel extends Request_IRC
   {
     $this->parent = $parent;
     $this->parent->put("JOIN $channel\r\n");
-    stream_set_timeout($this->parent->sock, 3);
-    while ( $msg = $this->parent->get() )
-    {
-      // Do nothing
-    }
+    // stream_set_timeout($this->parent->sock, 3);
+    // while ( $msg = $this->parent->get() )
+    // {
+    //   // Do nothing
+    // }
     $this->channel_name = $channel;
     $this->handler = $handler;
+    eval(eb_fetch_hook('event_self_join'));
   }
   
   /**

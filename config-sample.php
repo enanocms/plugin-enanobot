@@ -2,6 +2,7 @@
 
 // Rename this to config.php and run php ./enanobot.php to start.
 
+$server = 'irc.freenode.net';
 $nick = 'EnanoBot';
 $pass = '';
 $name = 'Enano CMS logging/message bot';
