@@ -53,11 +53,11 @@ if ( isset($_POST['tz']) )
     <?php
     if ( $set_zone )
     {
-      $target = dirname($_SERVER['PHP_SELF']) . '/';
+      $target = rtrim(dirname($_SERVER['REQUEST_URI']), '/') . '/';
       echo '<div class="success">' . "Successfully set time zone to <b>{$set_zone}</b>. <a href=\"$target\">Return to the stats page</a>." . '</div>';
     }
     ?>
-    <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post">
+    <form action="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>" method="post">
     Select time zone:
     <select name="tz">
       <?php
