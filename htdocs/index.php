@@ -60,11 +60,11 @@ $channel = ( isset($_REQUEST['channel']) && isset($stats_data['messages'][$_REQU
       $count = stats_message_count($channel, 3);
       if ( empty($datum) )
         echo '<li>No recent posts.</li>';
-      foreach ( $datum as $nick => $pct )
+      foreach ( $datum as $usernick => $pct )
       {
         $total = round($pct * $count);
         $pct = round(100 * $pct, 1);
-        echo "<li>$nick - $pct% ($total)</li>\n";
+        echo "<li>$usernick - $pct% ($total)</li>\n";
       }
       ?>
     </ul>
@@ -75,11 +75,11 @@ $channel = ( isset($_REQUEST['channel']) && isset($stats_data['messages'][$_REQU
       $count = stats_message_count($channel, 20);
       if ( empty($datum) )
         echo '<li>No recent posts.</li>';
-      foreach ( $datum as $nick => $pct )
+      foreach ( $datum as $usernick => $pct )
       {
         $total = round($pct * $count);
         $pct = round(100 * $pct, 1);
-        echo "<li>$nick - $pct% ($total)</li>\n";
+        echo "<li>$usernick - $pct% ($total)</li>\n";
       }
       ?>
     </ul>
