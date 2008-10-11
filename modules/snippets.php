@@ -17,7 +17,7 @@ function snippets_event_privmsg(&$chan, &$message)
       $q = eb_mysql_query('SELECT snippet_code, snippet_channels FROM snippets;');
       if ( mysql_num_rows($q) < 1 )
       {
-        $chan->msg(eb_censor_words("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database."), true);
+        // $chan->msg(eb_censor_words("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database."), true);
       }
       else
       {
@@ -46,7 +46,7 @@ function snippets_event_privmsg(&$chan, &$message)
       $q = eb_mysql_query('SELECT snippet_text, snippet_channels FROM snippets WHERE snippet_code = \'' . mysql_real_escape_string($snippet) . '\';');
       if ( mysql_num_rows($q) < 1 )
       {
-        $chan->msg(eb_censor_words("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database."), true);
+        // $chan->msg(eb_censor_words("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database."), true);
       }
       else
       {
@@ -58,7 +58,7 @@ function snippets_event_privmsg(&$chan, &$message)
         }
         else
         {
-          $chan->msg(eb_censor_words("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database."), true);
+          // $chan->msg(eb_censor_words("{$message['nick']}, I couldn't find that snippet (\"$snippet\") in the database."), true);
         }
       }
       @mysql_free_result($q);
