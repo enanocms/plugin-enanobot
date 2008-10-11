@@ -193,7 +193,7 @@ function enanobot_process_channel_message($sockdata, $chan, $message)
   if ( strpos($message['message'], $nick) && !in_array($message['nick'], $privileged_list) && $message['nick'] != $nick )
   {
     $target_nick =& $message['nick'];
-    $chan->msg("{$target_nick}, I'm only a bot. :-) You should probably rely on the advice of humans if you need further assistance.", true);
+    // $chan->msg("{$target_nick}, I'm only a bot. :-) You should probably rely on the advice of humans if you need further assistance.", true);
   }
   else
   {
