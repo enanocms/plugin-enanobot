@@ -50,7 +50,8 @@ $g = new GraphMaker(); // _Compat();
 
 $g->SetGraphPadding(20, 30, 20, 15);
 $g->SetGraphAreaHeight(200);
-$g->SetBarPadding(10);
+$g->SetBarDimensions(26, 0);
+$g->SetBarPadding(7);
 $g->SetBarData($graphdata);
 $g->SetGraphBackgroundTransparent(240, 250, 255, 0);
 $g->SetGraphTransparency(25);
