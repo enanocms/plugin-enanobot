@@ -122,25 +122,28 @@ function stats_last_updated()
 function stats_merge($data)
 {
   global $stats_merged_data;
-  foreach ( $data['counts'] as $channel => $chaninfo )
+  if ( isset($data['counts']) )
   {
-    if ( isset($stats_merged_data['counts'][$channel]) )
+    foreach ( $data['counts'] as $channel => $chaninfo )
     {
-      foreach ( $stats_merged_data['counts'][$channel] as $key => &$value )
+      if ( isset($stats_merged_data['counts'][$channel]) )
       {
-        if ( is_int($value) )
+        foreach ( $stats_merged_data['counts'][$channel] as $key => &$value )
         {
-          $value = max($value, $chaninfo[$key]);
-        }
-        else if ( is_array($value) )
-        {
-          $value = array_merge($value, $chaninfo[$key]);
+          if ( is_int($value) )
+          {
+            $value = max($value, $chaninfo[$key]);
+          }
+          else if ( is_array($value) )
+          {
+            $value = array_merge($value, $chaninfo[$key]);
+          }
         }
       }
-    }
-    else
-    {
-      $stats_merged_data['counts'][$channel] = $chaninfo;
+      else
+      {
+        $stats_merged_data['counts'][$channel] = $chaninfo;
+      }
     }
   }
   foreach ( $data['messages'] as $channel => $chandata )
