@@ -26,7 +26,7 @@ $channel = ( isset($_REQUEST['channel']) && isset($stats_data['messages'][$_REQU
         <?php
         $tz_display = str_replace('_', ' ', str_replace('/', ': ', $tz));
         echo 'Time zone: ' . $tz_display . ' [<a href="changetz.php">change</a>]<br />';
-        echo '<small>The time now is ' . date('H:i:s') . '.<br />Statistics last written to disk at ' . date('H:i:s', filemtime('../stats-data.php')) . '.</small>';
+        echo '<small>The time now is ' . date('H:i:s') . '.<br />Statistics last written to disk at ' . date('H:i:s', stats_last_updated()) . '.</small>';
         ?>
       </p>
       <p>

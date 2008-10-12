@@ -7,12 +7,10 @@
  * @author Dan Fuhry <dan@enanocms.org>
  */
 
-if ( !isset($GLOBALS['stats_data']) )
-{
-  require(dirname(__FILE__) . '/stats-data.php');
-  $data =& $stats_data;
-}
+$stats_merged_data = array('counts' => array(), 'messages' => array());
+$stats_data =& $stats_merged_data;
 
+define('ENANOBOT_ROOT', dirname(__FILE__));
 define('NOW', time());
 
 /**
@@ -25,18 +23,18 @@ define('NOW', time());
 
 function stats_message_count($channel, $mins = 10, $base = NOW)
 {
-  global $data;
+  global $stats_merged_data;
   
   $time_min = $base - ( $mins * 60 );
   $time_max = $base;
   
-  if ( !isset($data['messages'][$channel]) )
+  if ( !isset($stats_merged_data['messages'][$channel]) )
   {
     return 0;
   }
   
   $count = 0;
-  foreach ( $data['messages'][$channel] as $message )
+  foreach ( $stats_merged_data['messages'][$channel] as $message )
   {
     if ( $message['time'] >= $time_min && $message['time'] <= $time_max )
     {
@@ -57,7 +55,7 @@ function stats_message_count($channel, $mins = 10, $base = NOW)
 
 function stats_activity_percent($channel, $mins = 10, $base = NOW)
 {
-  global $data;
+  global $stats_merged_data;
   if ( !($total = stats_message_count($channel, $mins, $base)) )
   {
     return array();
@@ -66,7 +64,7 @@ function stats_activity_percent($channel, $mins = 10, $base = NOW)
   $usercounts = array();
   $time_min = $base - ( $mins * 60 );
   $time_max = $base;
-  foreach ( $data['messages'][$channel] as $message )
+  foreach ( $stats_merged_data['messages'][$channel] as $message )
   {
     if ( $message['time'] >= $time_min && $message['time'] <= $time_max )
     {
@@ -82,3 +80,84 @@ function stats_activity_percent($channel, $mins = 10, $base = NOW)
   arsort($results);
   return $results;
 }
+
+/**
+ * Loads X days of statistics, minimum.
+ * @param int Days to load, default is 1
+ */
+ 
+function load_stats_data($days = 1)
+{
+  $days++;
+  for ( $i = 0; $i < $days; $i++ )
+  {
+    $day = NOW - ( $i * 86400 );
+    $day = gmdate('Ymd', $day);
+    if ( file_exists(ENANOBOT_ROOT . "/stats/stats-data-$day.php") )
+    {
+      require(ENANOBOT_ROOT . "/stats/stats-data-$day.php");
+      stats_merge($stats_data);
+    }
+  }
+}
+
+/**
+ * Return the time that the stats DB was last updated.
+ * @return int
+ */
+
+function stats_last_updated()
+{
+  $day = gmdate('Ymd');
+  $file = ENANOBOT_ROOT . "/stats/stats-data-$day.php";
+  return ( file_exists($file) ) ? filemtime($file) : 0;
+}
+
+/**
+ * Merges a newly loaded stats array with the current cache in RAM.
+ * @param array Data to merge
+ * @access private
+ */
+
+function stats_merge($data)
+{
+  global $stats_merged_data;
+  foreach ( $data['counts'] as $channel => $chaninfo )
+  {
+    if ( isset($stats_merged_data['counts'][$channel]) )
+    {
+      foreach ( $stats_merged_data['counts'][$channel] as $key => &$value )
+      {
+        if ( is_int($value) )
+        {
+          $value = max($value, $chaninfo[$key]);
+        }
+        else if ( is_array($value) )
+        {
+          $value = array_merge($value, $chaninfo[$key]);
+        }
+      }
+    }
+    else
+    {
+      $stats_merged_data['counts'][$channel] = $chaninfo;
+    }
+  }
+  foreach ( $data['messages'] as $channel => $chandata )
+  {
+    if ( isset($stats_merged_data['messages'][$channel]) )
+    {
+      foreach ( $chandata as $message )
+      {
+        $stats_merged_data['messages'][$channel][] = $message;
+      }
+    }
+    else
+    {
+      $stats_merged_data['messages'][$channel] = $chandata;
+    }
+  }
+}
+
+load_stats_data();
+

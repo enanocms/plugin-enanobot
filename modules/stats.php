@@ -8,7 +8,8 @@ $stats_prefixes = array(
   'v' => '+'
 );
 $stats_data = array('anonymous' => array(), 'messages' => array());
-@include('./stats-data.php');
+$stats_day = gmdate('Ymd');
+@include("./stats/stats-data-$stats_day.php");
 unset($stats_data['members']);
 $stats_data['members'] =& $stats_memberlist;
 
@@ -232,6 +233,9 @@ function stats_handle_other_event(&$message)
 
 function stats_cron()
 {
+  global $stats_day;
+  $stats_day = gmdate('Ymd');
+  
   static $commit_time = 0;
   $now = time();
   // commit to disk every 1 minute
@@ -244,13 +248,13 @@ function stats_cron()
 
 function stats_commit()
 {
-  global $stats_data;
+  global $stats_data, $stats_day;
   ob_start();
   var_export($stats_data);
   $stats_data_exported = ob_get_contents();
   ob_end_clean();
   
-  $fp = @fopen('./stats-data.php', 'w');
+  $fp = @fopen("./stats/stats-data-$stats_day.php", 'w');
   if ( !$fp )
     return false;
   fwrite($fp, "<?php\n\$stats_data = $stats_data_exported;\n");
