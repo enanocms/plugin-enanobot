@@ -233,9 +233,6 @@ function stats_handle_other_event(&$message)
 
 function stats_cron()
 {
-  global $stats_day;
-  $stats_day = gmdate('Ymd');
-  
   static $commit_time = 0;
   $now = time();
   // commit to disk every 1 minute
@@ -249,6 +246,7 @@ function stats_cron()
 function stats_commit()
 {
   global $stats_data, $stats_day;
+  
   ob_start();
   var_export($stats_data);
   $stats_data_exported = ob_get_contents();
@@ -259,5 +257,16 @@ function stats_commit()
     return false;
   fwrite($fp, "<?php\n\$stats_data = $stats_data_exported;\n");
   fclose($fp);
+  
+  if ( $stats_day != gmdate('Ymd') )
+  {
+    // it's a new day! flush all our logs
+    foreach ( $stats_data['messages'] as &$data )
+    {
+      $data = array();
+    }
+  }
+  
+  $stats_day = gmdate('Ymd');
 }
 
