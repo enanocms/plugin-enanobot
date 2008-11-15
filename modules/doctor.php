@@ -1,4 +1,6 @@
 <?php
+$doctor = array();
+
 require('eliza.php');
 
 eb_hook('event_channel_msg', 'doctor_listen($chan, $message);');
