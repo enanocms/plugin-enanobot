@@ -1,11 +1,10 @@
 <?php
 require('../stats-fe.php');
 require('../timezone.php');
-require('../config.php');
 
-$channels = array_keys($stats_data['messages']);
-$first_channel = $channels[0];
-$channel = ( isset($_REQUEST['channel']) && isset($stats_data['messages'][$_REQUEST['channel']]) ) ? $_REQUEST['channel'] : $first_channel;
+$channel_list = stats_channel_list();
+$first_channel = $channel_list[0];
+$channel = ( isset($_REQUEST['channel']) && in_array($_REQUEST['channel'], $channel_list) ) ? $_REQUEST['channel'] : $first_channel;
 ?>
 
 <html>
@@ -26,7 +25,7 @@ $channel = ( isset($_REQUEST['channel']) && isset($stats_data['messages'][$_REQU
         <?php
         $tz_display = str_replace('_', ' ', str_replace('/', ': ', $tz));
         echo 'Time zone: ' . $tz_display . ' [<a href="changetz.php">change</a>]<br />';
-        echo '<small>The time now is ' . date('H:i:s') . '.<br />Statistics last written to disk at ' . date('H:i:s', stats_last_updated()) . '.</small>';
+        echo '<small>The time now is ' . date('H:i:s') . '.<br />Statistics now updated constantly (see <a href="news.php">news</a>)</small>';
         ?>
       </p>
       <p>

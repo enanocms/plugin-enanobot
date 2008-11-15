@@ -7,11 +7,24 @@
  * @author Dan Fuhry <dan@enanocms.org>
  */
 
-$stats_merged_data = array('counts' => array(), 'messages' => array());
-$stats_data =& $stats_merged_data;
-
 define('ENANOBOT_ROOT', dirname(__FILE__));
 define('NOW', time());
+
+require(ENANOBOT_ROOT . '/config.php');
+require(ENANOBOT_ROOT . '/hooks.php');
+require(ENANOBOT_ROOT . '/database.php');
+
+mysql_reconnect();
+
+/**
+ * Gets ths list of channels.
+ * @return array
+ */
+
+function stats_channel_list()
+{
+  return $GLOBALS['channels'];
+}
 
 /**
  * Gets the number of messages posted in IRC in the last X minutes.
@@ -23,26 +36,32 @@ define('NOW', time());
 
 function stats_message_count($channel, $mins = 10, $base = NOW)
 {
-  global $stats_merged_data;
-  
+  $channel = db_escape($channel);
   $time_min = $base - ( $mins * 60 );
-  $time_max = $base;
-  
-  if ( !isset($stats_merged_data['messages'][$channel]) )
+  $time_max =& $base;
+  if ( $q = eb_mysql_query("SELECT message_count FROM stats_count_cache WHERE time_min = $time_min AND time_max = $time_max AND channel = '$channel';") )
   {
-    return 0;
-  }
-  
-  $count = 0;
-  foreach ( $stats_merged_data['messages'][$channel] as $message )
-  {
-    if ( $message['time'] >= $time_min && $message['time'] <= $time_max )
+    if ( mysql_num_rows($q) > 0 )
     {
-      $count++;
+      $row = mysql_fetch_assoc($q);
+      mysql_free_result($q);
+      return intval($row['message_count']);
     }
+    mysql_free_result($q);
   }
-  
-  return $count;
+  if ( $q = eb_mysql_query("SELECT COUNT(message_id) FROM stats_messages WHERE channel = '$channel' AND time >= $time_min AND time <= $time_max;") )
+  {
+    $row = mysql_fetch_row($q);
+    $count = $row[0];
+    mysql_free_result($q);
+    // avoid caching future queries
+    if ( $base <= NOW )
+    {
+      eb_mysql_query("INSERT INTO stats_count_cache(channel, time_min, time_max, message_count) VALUES('$channel', $time_min, $time_max, $count);");
+    }
+    return $count;
+  }
+  return false;
 }
 
 /**
@@ -55,50 +74,34 @@ function stats_message_count($channel, $mins = 10, $base = NOW)
 
 function stats_activity_percent($channel, $mins = 10, $base = NOW)
 {
-  global $stats_merged_data;
-  if ( !($total = stats_message_count($channel, $mins, $base)) )
-  {
-    return array();
-  }
-  $results = array();
-  $usercounts = array();
+  $channel = db_escape($channel);
   $time_min = $base - ( $mins * 60 );
-  $time_max = $base;
-  foreach ( $stats_merged_data['messages'][$channel] as $message )
+  $time_max =& $base;
+  
+  if ( $q = eb_mysql_query("SELECT nick FROM stats_messages WHERE channel = '$channel' AND time >= $time_min AND time <= $time_max;") )
   {
-    if ( $message['time'] >= $time_min && $message['time'] <= $time_max )
+    $userdata = array();
+    while ( $row = @mysql_fetch_assoc($q) )
     {
-      if ( !isset($usercounts[$message['nick']]) )
-        $usercounts[$message['nick']] = 0;
-      $usercounts[$message['nick']]++;
+      $total++;
+      if ( isset($userdata[ $row['nick'] ]) )
+      {
+        $userdata[ $row['nick'] ]++;
+      }
+      else
+      {
+        $userdata[ $row['nick'] ] = 1;
+      }
     }
-  }
-  foreach ( $usercounts as $nick => $count )
-  {
-    $results[$nick] = $count / $total;
-  }
-  arsort($results);
-  return $results;
-}
-
-/**
- * Loads X days of statistics, minimum.
- * @param int Days to load, default is 1
- */
- 
-function load_stats_data($days = 1)
-{
-  $days++;
-  for ( $i = 0; $i < $days; $i++ )
-  {
-    $day = NOW - ( $i * 86400 );
-    $day = gmdate('Ymd', $day);
-    if ( file_exists(ENANOBOT_ROOT . "/stats/stats-data-$day.php") )
+    foreach ( $userdata as &$val )
     {
-      require(ENANOBOT_ROOT . "/stats/stats-data-$day.php");
-      stats_merge($stats_data);
+      $val = $val / $total;
     }
+    mysql_free_result($q);
+    arsort($userdata);
+    return $userdata;
   }
+  return false;
 }
 
 /**
@@ -108,59 +111,8 @@ function load_stats_data($days = 1)
 
 function stats_last_updated()
 {
-  $day = gmdate('Ymd');
-  $file = ENANOBOT_ROOT . "/stats/stats-data-$day.php";
-  return ( file_exists($file) ) ? filemtime($file) : 0;
+  // :-D
+  return NOW;
 }
 
-/**
- * Merges a newly loaded stats array with the current cache in RAM.
- * @param array Data to merge
- * @access private
- */
-
-function stats_merge($data)
-{
-  global $stats_merged_data;
-  if ( isset($data['counts']) )
-  {
-    foreach ( $data['counts'] as $channel => $chaninfo )
-    {
-      if ( isset($stats_merged_data['counts'][$channel]) )
-      {
-        foreach ( $stats_merged_data['counts'][$channel] as $key => &$value )
-        {
-          if ( is_int($value) )
-          {
-            $value = max($value, $chaninfo[$key]);
-          }
-          else if ( is_array($value) )
-          {
-            $value = array_merge($value, $chaninfo[$key]);
-          }
-        }
-      }
-      else
-      {
-        $stats_merged_data['counts'][$channel] = $chaninfo;
-      }
-    }
-  }
-  foreach ( $data['messages'] as $channel => $chandata )
-  {
-    if ( isset($stats_merged_data['messages'][$channel]) )
-    {
-      foreach ( $chandata as $message )
-      {
-        $stats_merged_data['messages'][$channel][] = $message;
-      }
-    }
-    else
-    {
-      $stats_merged_data['messages'][$channel] = $chandata;
-    }
-  }
-}
-
-load_stats_data();
 

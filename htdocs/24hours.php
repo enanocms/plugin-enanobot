@@ -4,9 +4,9 @@ require('../stats-fe.php');
 require('../graphs.php');
 require('../timezone.php');
 
-$first_channel = array_keys($stats_data['messages']);
-$first_channel = $first_channel[0];
-$channel = ( isset($_REQUEST['channel']) && isset($stats_data['messages'][$_REQUEST['channel']]) ) ? $_REQUEST['channel'] : $first_channel;
+$channel_list = stats_channel_list();
+$first_channel = $channel_list[0];
+$channel = ( isset($_REQUEST['channel']) && in_array($_REQUEST['channel'], $channel_list) ) ? $_REQUEST['channel'] : $first_channel;
 
 // generate the data
 // we're doing this by absolute hours, not by strictly "24 hours ago", e.g. on-the-hour stats
