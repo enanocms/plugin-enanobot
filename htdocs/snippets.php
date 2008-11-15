@@ -11,7 +11,7 @@
  * This script MUST be placed in an Enano installation directory.
  *****************************************************************/
 
-define('ENANOBOT_ROOT', dirname(__FILE__) . '/');
+define('ENANOBOT_ROOT', dirname(__FILE__) . '/../');
 
 // load Enano for auth
 /*
