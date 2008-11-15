@@ -74,6 +74,7 @@ function eb_censor_words($text)
 require('libirc.php');
 require('hooks.php');
 require('config.php');
+require('database.php');
 
 @ini_set('display_errors', 'on');
 error_reporting(E_ALL);
@@ -88,62 +89,9 @@ foreach ( $modules as $module )
   }
 }
 
-$mysql_conn = false;
-$doctor = array();
-
-function mysql_reconnect()
-{
-  global $mysql_conn, $mysql_host, $mysql_user, $mysql_pass, $mysql_dbname;
-  if ( $mysql_conn )
-  {
-    @mysql_close($mysql_conn);
-    if ( defined('LIBIRC_DEBUG') )
-    {
-      echo "< > Reconnecting to MySQL\n";
-    }
-  }
-  // connect to MySQL
-  $mysql_conn = @mysql_connect($mysql_host, $mysql_user, $mysql_pass);
-  if ( !$mysql_conn )
-  {
-    $m_e = mysql_error();
-    echo "Error connecting to MySQL: $m_e\n";
-    exit(1);
-  }
-  $q = @mysql_query("USE `$mysql_dbname`;", $mysql_conn);
-  if ( !$q )
-  {
-    $m_e = mysql_error();
-    echo "Error selecting database: $m_e\n";
-    exit(1);
-  }
-}
-
-function eb_mysql_query($sql, $conn = false)
-{
-  global $mysql_conn, $irc;
-  $m_et = false;
-  while ( true )
-  {
-    $q = mysql_query($sql, $mysql_conn);
-    if ( !$q )
-    {
-      $m_e = mysql_error();
-      if ( strpos($m_e, 'gone away') && !$m_et )
-      {
-        mysql_reconnect();
-        continue;
-      }
-      $m_et = true;
-      $irc->close("MySQL query error: $m_e");
-      exit(1);
-    }
-    break;
-  }
-  return $q;
-}
-
 mysql_reconnect();
+
+eval(eb_fetch_hook('startup_early'));
 
 $libirc_channels = array();
 
@@ -226,10 +174,11 @@ function enanobot_privmsg_event($message)
     }
     $part_cache = array();
   }
-  else if ( in_array($message['nick'], $privileged_list) && $message['message'] == 'Shutdown' && $message['action'] == 'PRIVMSG' )
+  else if ( in_array($message['nick'], $privileged_list) && preg_match('/^Shutdown(?: (.+))$/i', $message['message'], $match) && $message['action'] == 'PRIVMSG' )
   {
     $GLOBALS['_shutdown'] = true;
-    $irc->close("Remote bot shutdown ordered by {$message['nick']}", true);
+    $quitmessage = empty($match[1]) ? "Remote bot shutdown ordered by {$message['nick']}" : $match[1];
+    $irc->close($quitmessage, true);
     return 'BREAK';
   }
   else if ( $message['action'] == 'PRIVMSG' )
