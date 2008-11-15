@@ -249,6 +249,7 @@ class Request_IRC
   private function handle_privmsg($message)
   {
     $message = self::parse_message($message);
+    $message['message'] = preg_replace('/^(.+?):/', '', $message['message']);
     $ph = $this->privmsg_handler;
     if ( @function_exists($ph) )
       return @call_user_func($ph, $message);
