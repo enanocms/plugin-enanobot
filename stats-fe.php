@@ -77,6 +77,7 @@ function stats_activity_percent($channel, $mins = 10, $base = NOW)
   $channel = db_escape($channel);
   $time_min = $base - ( $mins * 60 );
   $time_max =& $base;
+  $total = 0;
   
   if ( $q = eb_mysql_query("SELECT nick FROM stats_messages WHERE channel = '$channel' AND time >= $time_min AND time <= $time_max;") )
   {
