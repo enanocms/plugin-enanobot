@@ -214,8 +214,40 @@ class Request_IRC
     $message = explode("\n", $message);
     foreach ( $message as $line )
     {
+      $line = $this->filter_message($line);
       $this->put("PRIVMSG $nick :$line\r\n");
     }
+  }
+  
+  /**
+  * Parse bold (<b>...</b>) tags and color tags in a text into IRC speak, and process /me commands. Colors are <cyan>...</cyan>, specify background with <fg:bg>...</fgcolor:bgcolor>. Valid colors are white, black, navy, green, red, maroon, purple, orange, yellow, lime, teal, aqua, cyan, blue, pink, grey, and silver
+   * @param string Text to filter
+   * @return string
+   */
+  
+  function filter_message($text)
+  {
+    $text = preg_replace('#<b>(.*?)</b>#is', "\x02$1\x02", $text);
+    if ( preg_match('#^/me #i', $text) )
+    {
+      $text = "\x01ACTION " . preg_replace('#^/me #i', '', $text) . "\x01";
+    }
+    $supportedcolors = array('white', 'black', 'navy', 'green', 'red', 'maroon', 'purple', 'orange', 'yellow', 'lime', 'teal', 'cyan', 'blue', 'pink', 'grey', 'silver');
+    $colors = implode('|', $supportedcolors);
+    $supportedcolors = array_flip($supportedcolors);
+    preg_match_all("#<((?:$colors)(?::(?:$colors))?)>(.*?)</\\1>#is", $text, $matches);
+    foreach ( $matches[0] as $i => $match )
+    {
+      preg_match("#<(?:($colors)(?::($colors))?)>#i", $match, $colordata);
+      $fgcolor = $supportedcolors[$colordata[1]];
+      $bgcolor = $colordata[1] ? $supportedcolors[$colordata[2]] : '';
+      $fgcolor = ( $fgcolor < 10 ) ? "0$fgcolor" : "$fgcolor";
+      if ( is_int($bgcolor) )
+        $bgcolor = ( $bgcolor < 10 ) ? ",0$bgcolor" : ",$bgcolor";
+      $text = str_replace($match, "\x03{$fgcolor}{$bgcolor}{$matches[2][$i]}\x03", $text);
+    }
+    
+    return $text;
   }
   
   /**
