@@ -220,7 +220,7 @@ class Request_IRC
   }
   
   /**
-  * Parse bold (<b>...</b>) tags and color tags in a text into IRC speak, and process /me commands. Colors are <cyan>...</cyan>, specify background with <fg:bg>...</fgcolor:bgcolor>. Valid colors are white, black, navy, green, red, maroon, purple, orange, yellow, lime, teal, aqua, cyan, blue, pink, grey, and silver
+   * Parse bold (<b>...</b>) tags and color tags in a text into IRC speak, and process /me commands. Colors are <cyan>...</cyan>, specify background with <fg:bg>...</fgcolor:bgcolor>. Valid colors are white, black, navy, green, red, maroon, purple, orange, yellow, lime, teal, aqua, cyan, blue, pink, grey, and silver
    * @param string Text to filter
    * @return string
    */
