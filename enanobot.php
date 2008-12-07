@@ -98,6 +98,7 @@ $libirc_channels = array();
 $irc = new Request_IRC($server);
 $irc->connect($nick, $user, $name, $pass);
 $irc->set_privmsg_handler('enanobot_privmsg_event');
+$irc->set_timeout_handlers(false, 'enanobot_timeout_event');
 
 foreach ( $channels as $channel )
 {
@@ -188,6 +189,65 @@ function enanobot_privmsg_event($message)
   else
   {
     eval(eb_fetch_hook('event_other'));
+  }
+}
+
+function enanobot_timeout_event($irc)
+{
+  // uh-oh.
+  $irc->close();
+  if ( defined('LIBIRC_DEBUG') )
+  {
+    $now = date('r');
+    echo "!!! [$now] Connection timed out; waiting 10 seconds and reconnecting\n";
+  }
+  
+  // re-init
+  global $server, $nick, $user, $name, $pass, $channels, $libirc_channels;
+  
+  // wait until we can get into the server
+  while ( true )
+  {
+    sleep(10);
+    if ( defined('LIBIRC_DEBUG') )
+    {
+      $now = date('r');
+      echo "... [$now] Attempting reconnect\n";
+    }
+    $conn = @fsockopen($server, 6667, $errno, $errstr, 5);
+    if ( $conn )
+    {
+      if ( defined('LIBIRC_DEBUG') )
+      {
+        $now = date('r');
+        echo "!!! [$now] Reconnection succesful, ghosting old login\n";
+      }
+      fclose($conn);
+      break;
+    }
+    else
+    {
+      if ( defined('LIBIRC_DEBUG') )
+      {
+        $now = date('r');
+        echo "!!! [$now] Still waiting for connection to come back up\n";
+      }
+    }
+  }
+  
+  $libirc_channels = array();
+  
+  // we were able to get back in; ask NickServ to GHOST the old nick
+  $irc->connect("$nick`gh", $user, $name, false);
+  $irc->privmsg('NickServ', "GHOST $nick $pass");
+  $irc->change_nick($nick, $pass);
+  
+  foreach ( $channels as $channel )
+  {
+    $libirc_channels[$channel] = $irc->join($channel, 'enanobot_channel_event');
+    $channel_clean = preg_replace('/^[#&]/', '', $channel);
+    $libirc_channels[$channel_clean] =& $libirc_channels[$channel];
+    $irc->privmsg('ChanServ', "OP $channel $nick");
   }
 }
 

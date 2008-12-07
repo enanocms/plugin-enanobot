@@ -55,6 +55,20 @@ class Request_IRC
   private $privmsg_handler = false;
   
   /**
+   * The function called when a timeout is suspected.
+   * @var string
+   */
+  
+  private $timeout_warning_handler = false;
+  
+  /**
+   * The function called when a timeout is confirmed.
+   * @var string
+   */
+  
+  private $timeout_error_handler = false;
+  
+  /**
    * Switch to track if quitted or not. Helps avoid quitting the connection twice thus causing write errors.
    * @var bool
    * @access private
@@ -105,7 +119,7 @@ class Request_IRC
    * @param int Flags, defaults to 0.
    */
   
-  public function connect($nick, $username, $realname, $pass, $flags = 0)
+  public function connect($nick, $username, $realname, $pass = false, $flags = 0)
   {
     // Init connection
     $this->sock = fsockopen($this->host, $this->port);
@@ -135,10 +149,12 @@ class Request_IRC
     }
     
     // identify to nickserv
-    $this->privmsg('NickServ', "IDENTIFY $pass");
+    if ( $pass )
+      $this->privmsg('NickServ', "IDENTIFY $pass");
     
     $this->nick = $nick;
     $this->user = $username;
+    $this->quitted = false;
   }
   
   /**
@@ -164,7 +180,7 @@ class Request_IRC
    * @return string
    */
   
-  public function get()
+  public function get($timeout = 1)
   {
     if ( !$this->sock )
     {
@@ -172,11 +188,18 @@ class Request_IRC
         echo "<<< READ FAILED\n";
       return false;
     }
-    $out = fgets($this->sock, 4096);
-    if ( defined('LIBIRC_DEBUG') )
-      if ( !empty($out) )
-        echo "<<< $out";
-    return $out;
+    if ( ($c = stream_select($r = array($this->sock), $w = null, $e = null, $timeout)) !== false )
+    {
+      if ( $c > 0 )
+      {
+        $out = fgets($this->sock, 4096);
+        if ( defined('LIBIRC_DEBUG') )
+          if ( !empty($out) )
+            echo "<<< $out";
+        return $out;
+      }
+    }
+    return false;
   }
   
   /**
@@ -201,15 +224,51 @@ class Request_IRC
   
   public function event_loop()
   {
-    stream_set_timeout($this->sock, 0xFFFFFFFE);
-    while ( $data = $this->get() )
+    $timeout = 180;
+    $timeout_warn = false;
+    while ( true )
     {
-      $data_trim = trim($data);
+      $data = $this->get($timeout);
+      $data_trim = $data ? trim($data) : false;
+      if ( empty($data_trim) )
+      {
+        if ( $timeout_warn )
+        {
+          // timeout confirmed :-/
+          if ( $this->timeout_error_handler )
+          {
+            $result = @call_user_func($this->timeout_error_handler, $this);
+            if ( $result == 'BREAK' )
+              break;
+          }
+          $timeout = 180;
+          $timeout_warn = false;
+          continue;
+        }
+        // timeout suspected
+        if ( $this->timeout_warning_handler )
+        {
+          $result = @call_user_func($this->timeout_warning_handler, $this);
+          if ( $result == 'BREAK' )
+            break;
+        }
+        // ping the server
+        $this->put("PING :{$this->nick}\r\n");
+        // set timeout lower to make reconnecting work as fast as possible
+        $timeout = 10;
+        $timeout_warn = true;
+        continue;
+      }
       $match = self::parse_message($data_trim);
       if ( preg_match('/^PING :(.+?)$/', $data_trim, $pmatch) )
       {
         $this->put("PONG :{$pmatch[1]}\r\n");
         eval(eb_fetch_hook('event_ping'));
+      }
+      else if ( preg_match('/^:((?:[a-z0-9-]+\.)*[a-z0-9-]+) PONG \\1 :' . preg_quote($this->nick) .'/', $data_trim) )
+      {
+        $timeout = 180;
+        $timeout_warn = false;
       }
       else if ( $match )
       {
@@ -269,6 +328,27 @@ class Request_IRC
   }
   
   /**
+   * Changes the functions called when IRC connection timeouts occur.
+   * @param string Function to call when a warning (no traffic within 3 minutes) occurs. If false, nothing will be called.
+   * @param string Function to call if a ping timeout occurs. If false, nothing will be called.
+   */
+  
+  function set_timeout_handlers($warn_func, $error_func)
+  {
+    $this->timeout_warning_handler = false;
+    $this->timeout_error_handler = false;
+    if ( function_exists($warn_func) )
+    {
+      $this->timeout_warning_handler = $warn_func;
+    }
+    if ( function_exists($error_func) )
+    {
+      $this->timeout_error_handler = $error_func;
+    }
+    return true;
+  }
+  
+  /**
    * Parses a message line.
    * @param string Message text
    * @return array Associative with keys: nick, user, host, action, target, message
@@ -309,6 +389,29 @@ class Request_IRC
   }
   
   /**
+   * Changes the current nick.
+   * @param string New nick.
+   * @param string Password to authenticate to NickServ if needed.
+   */
+  
+  public function change_nick($nick, $pass = false)
+  {
+    $this->put("NICK $nick\r\n");
+    $this->nick = $nick;
+    if ( $pass )
+    {
+      while ( $data = $this->get(3) )
+      {
+        if ( strstr($data, 'NickServ') )
+        {
+          $this->privmsg('NickServ', "IDENTIFY $pass");
+          break;
+        }
+      }
+    }
+  }
+  
+  /**
    * Closes the connection and quits.
    * @param string Optional part message
    */
@@ -330,7 +433,7 @@ class Request_IRC
     
     $this->put("QUIT\r\n");
     
-    while ( $msg = $this->get() )
+    while ( $msg = $this->get(1) )
     {
       // Do nothing.
     }
