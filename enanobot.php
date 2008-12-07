@@ -175,7 +175,7 @@ function enanobot_privmsg_event($message)
     }
     $part_cache = array();
   }
-  else if ( in_array($message['nick'], $privileged_list) && preg_match('/^Shutdown(?: (.+))$/i', $message['message'], $match) && $message['action'] == 'PRIVMSG' )
+  else if ( in_array($message['nick'], $privileged_list) && preg_match('/^Shutdown(?: (.+))?$/i', $message['message'], $match) && $message['action'] == 'PRIVMSG' )
   {
     $GLOBALS['_shutdown'] = true;
     $quitmessage = empty($match[1]) ? "Remote bot shutdown ordered by {$message['nick']}" : $match[1];
@@ -195,7 +195,7 @@ function enanobot_privmsg_event($message)
 function enanobot_timeout_event($irc)
 {
   // uh-oh.
-  $irc->close();
+  $irc->close('client ping timeout (restarting connection)');
   if ( defined('LIBIRC_DEBUG') )
   {
     $now = date('r');
@@ -220,9 +220,11 @@ function enanobot_timeout_event($irc)
       if ( defined('LIBIRC_DEBUG') )
       {
         $now = date('r');
-        echo "!!! [$now] Reconnection succesful, ghosting old login\n";
+        echo "!!! [$now] Reconnection successful, ghosting old login (waiting 5 seconds to avoid throttling)\n";
       }
+      fputs($conn, "QUIT :This bot needs better exception handling. But until then I'm going to need to make repeated TCP connection attempts when my ISP craps out. Sorry :-/\r\n");
       fclose($conn);
+      sleep(5);
       break;
     }
     else

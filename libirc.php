@@ -424,7 +424,7 @@ class Request_IRC
     $this->quitted = true;
     // Part all channels
     if ( !$partmsg )
-      $partmsg = 'IRC bot powered by PHP/' . PHP_VERSION . ' libirc/' . REQUEST_IRC_VERSION;
+      $partmsg = 'Closing connection (no reason given)';
     
     foreach ( $this->channels as $channel )
     {
