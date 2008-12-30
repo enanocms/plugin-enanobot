@@ -59,7 +59,7 @@ function stats_message_count($channel, $mins = 10, $base = NOW)
     {
       eb_mysql_query("INSERT INTO stats_count_cache(channel, time_min, time_max, message_count) VALUES('$channel', $time_min, $time_max, $count);");
     }
-    return $count;
+    return intval($count);
   }
   return false;
 }
