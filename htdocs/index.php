@@ -83,7 +83,9 @@ $channel = ( isset($_REQUEST['channel']) && in_array($_REQUEST['channel'], $chan
       ?>
     </ul>
     <h1>Last 24 hours</h1>
-    <img alt="Graph image" src="24hours.php?channel=<?php echo urlencode($channel); ?>" />
+    <img alt="Graph image" src="graph.php?mode=lastday&amp;channel=<?php echo urlencode($channel); ?>" />
+    <h1>Last 2 weeks</h1>
+    <img alt="Graph image" src="graph.php?mode=lastweek&amp;channel=<?php echo urlencode($channel); ?>" />
     
     <div class="footer">
     <b><?php echo $nick; ?> is a privacy-respecting bot.</b> <a href="privacy.php">Read about what information <?php echo $nick; ?> collects</a>
