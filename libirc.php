@@ -239,6 +239,23 @@ class Request_IRC
   }
   
   /**
+   * Sends a notice.
+   * @param string Nick or channel
+   * @param string Message
+   */
+  
+  public function notice($nick, $message)
+  {
+    $message = str_replace("\r\n", "\n", $message);
+    $message = explode("\n", $message);
+    foreach ( $message as $line )
+    {
+      $line = $this->filter_message($line);
+      $this->put("NOTICE $nick :$line\r\n");
+    }
+  }
+  
+  /**
    * Parse bold (<b>...</b>) tags and color tags in a text into IRC speak, and process /me commands. Colors are <cyan>...</cyan>, specify background with <fg:bg>...</fgcolor:bgcolor>. Valid colors are white, black, navy, green, red, maroon, purple, orange, yellow, lime, teal, aqua, cyan, blue, pink, grey, and silver
    * @param string Text to filter
    * @return string

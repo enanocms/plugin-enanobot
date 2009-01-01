@@ -17,16 +17,16 @@ function echo_event_privmsg($message)
 {
   global $privileged_list;
   
-  if ( in_array($message['nick'], $privileged_list) && preg_match("/^\!echo-([^\007, \r\n\a\t]+) /", $message['message'], $match) )
+  if ( in_array($message['nick'], $privileged_list) && preg_match("/^(?:\!echo-|\/msg )([^\007, \r\n\a\t]+) /", $message['message'], $match) )
   {
     global $libirc_channels;
     $channel_name =& $match[1];
     if ( isset($libirc_channels[$channel_name]) && is_object($libirc_channels[$channel_name]) )
     {
-      $libirc_channels[$channel_name]->msg(eb_censor_words(preg_replace("/^\!echo-([^\007, \r\n\a\t]+) /", '', $message['message'])), true);
+      $libirc_channels[$channel_name]->msg(eb_censor_words(preg_replace("/^(?:\!echo-|\/msg )((?:#|&)[^\007, \r\n\a\t]+) /", '', $message['message'])), true);
     }
   }
-  else if ( in_array($message['nick'], $privileged_list) && preg_match("/^\!pm ([^\007, \r\n\a\t]+) (.+)/", $message['message'], $match) )
+  else if ( in_array($message['nick'], $privileged_list) && preg_match("/^(?:\!pm|\/msg) ([^\007, \r\n\a\t]+) (.+)/", $message['message'], $match) )
   {
     global $irc;
     $irc->privmsg($match[1], eb_censor_words($match[2]));

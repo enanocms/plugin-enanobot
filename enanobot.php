@@ -76,6 +76,8 @@ require('hooks.php');
 require('config.php');
 require('database.php');
 
+$enanobot_version = '0.5-unstable';
+
 @ini_set('display_errors', 'on');
 error_reporting(E_ALL);
 
@@ -181,6 +183,20 @@ function enanobot_privmsg_event($message)
     $quitmessage = empty($match[1]) ? "Remote bot shutdown ordered by {$message['nick']}" : $match[1];
     $irc->close($quitmessage, true);
     return 'BREAK';
+  }
+  else if ( in_array($message['nick'], $privileged_list) && preg_match('/^re(?:hash|load)?(?:config)?(?: |$)/', $message['message']) )
+  {
+    require('config.php');
+    $GLOBALS['privileged_list'] = $privileged_list;
+    $GLOBALS['alert_list'] = $alert_list;
+    $irc->privmsg($message['nick'], "Reloaded privileged_list and alert_list. privileged = " . str_replace("\n", '', print_r($privileged_list, true)) . "; alert = " . str_replace("\n", '', print_r($alert_list, true)));
+  }
+  else if ( substr($message['message'], 0, 1) == "\x01" && substr($message['message'], -1) == "\x01" )
+  {
+    $msg = trim($message['message'], "\x01");
+    list($ctcp) = explode(' ', $msg);
+    $params = substr($msg, strlen($ctcp)+1);
+    eval(eb_fetch_hook('event_ctcp'));
   }
   else if ( $message['action'] == 'PRIVMSG' )
   {
