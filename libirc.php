@@ -132,12 +132,20 @@ class Request_IRC
     $this->put("NICK $nick\r\n");
     $this->put("USER $username 0 * :$realname\r\n");
     
+    $need_deghost = false;
+    
     // wait for a mode +i or end of the motd
     while ( true )
     {
       $msg = $this->get();
       if ( empty($msg) )
         continue;
+      if ( strstr($msg, "433") )
+      {
+        // nick already in use - try to ghost
+        $this->change_nick("{$nick}|de-ghosting");
+        $need_deghost = true;
+      }
       if ( ( strstr($msg, 'MODE') && strstr($msg, '+i') ) || strstr(strtolower($msg), 'end of /motd') )
       {
         break;
@@ -146,6 +154,17 @@ class Request_IRC
       {
         $this->put("PONG :{$match[1]}\r\n");
       }
+    }
+    
+    if ( $need_deghost )
+    {
+      $this->privmsg('NickServ', "GHOST $nick $pass");
+      while ( $msg = $this->get(10) )
+      {
+        if ( stristr($msg, 'nickserv') && stristr($msg, 'ghost') )
+          break;
+      }
+      $this->change_nick($nick);
     }
     
     // identify to nickserv
@@ -304,6 +323,11 @@ class Request_IRC
       }
       else if ( $match )
       {
+        if ( $match['action'] == 'KILL' )
+        {
+          // be ethical here and die
+          return 'killed';
+        }
         // Received PRIVMSG or other mainstream action
         if ( $match['action'] == 'JOIN' || $match['action'] == 'PART' )
           $channel =& $match['message'];

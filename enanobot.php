@@ -240,9 +240,7 @@ function enanobot_timeout_event($irc)
   $libirc_channels = array();
   
   // we were able to get back in; ask NickServ to GHOST the old nick
-  $irc->connect("$nick`gh", $user, $name, false);
-  $irc->privmsg('NickServ', "GHOST $nick $pass");
-  $irc->change_nick($nick, $pass);
+  $irc->connect($nick, $user, $name, false);
   
   foreach ( $channels as $channel )
   {
