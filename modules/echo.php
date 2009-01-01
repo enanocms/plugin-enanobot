@@ -26,4 +26,9 @@ function echo_event_privmsg($message)
       $libirc_channels[$channel_name]->msg(eb_censor_words(preg_replace("/^\!echo-([^\007, \r\n\a\t]+) /", '', $message['message'])), true);
     }
   }
+  else if ( in_array($message['nick'], $privileged_list) && preg_match("/^\!pm ([^\007, \r\n\a\t]+) (.+)/", $message['message'], $match) )
+  {
+    global $irc;
+    $irc->privmsg($match[1], eb_censor_words($match[2]));
+  }
 }
