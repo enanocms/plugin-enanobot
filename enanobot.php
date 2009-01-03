@@ -180,7 +180,7 @@ function enanobot_privmsg_event($message)
   else if ( in_array($message['nick'], $privileged_list) && preg_match('/^Shutdown(?: (.+))?$/i', $message['message'], $match) && $message['action'] == 'PRIVMSG' )
   {
     $GLOBALS['_shutdown'] = true;
-    $quitmessage = empty($match[1]) ? "Remote bot shutdown ordered by {$message['nick']}" : $match[1];
+    $quitmessage = empty($match[1]) ? "Remote bot shutdown requested by {$message['nick']}" : $match[1];
     $irc->close($quitmessage, true);
     return 'BREAK';
   }
