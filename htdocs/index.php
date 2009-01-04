@@ -82,6 +82,8 @@ $channel = ( isset($_REQUEST['channel']) && in_array($_REQUEST['channel'], $chan
       }
       ?>
     </ul>
+    <h1>Last 60 minutes</h1>
+    <img alt="Graph image" src="graph.php?mode=lasthour&amp;channel=<?php echo urlencode($channel); ?>" />
     <h1>Last 24 hours</h1>
     <img alt="Graph image" src="graph.php?mode=lastday&amp;channel=<?php echo urlencode($channel); ?>" />
     <h1>Last 2 weeks</h1>
