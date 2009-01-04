@@ -106,6 +106,33 @@ function stats_activity_percent($channel, $mins = 10, $base = NOW)
 }
 
 /**
+ * Raw data.
+ * @param string Channel name
+ * @param int How many minutes, defaults to 60
+ * @param int Base time, defaults to right now
+ * @return array MySQL rows.
+ */
+
+function stats_raw_data($channel, $mins = 60, $base = NOW)
+{
+  $channel = db_escape($channel);
+  $time_min = $base - ( $mins * 60 );
+  $time_max =& $base;
+  $total = 0;
+  
+  if ( $q = eb_mysql_query("SELECT * FROM stats_messages WHERE channel = '$channel' AND time >= $time_min AND time <= $time_max ORDER BY message_id ASC;") )
+  {
+    $userdata = array();
+    while ( $row = @mysql_fetch_assoc($q) )
+    {
+      $userdata[] = $row;
+    }
+    return $userdata;
+  }
+  return false;
+}
+
+/**
  * Return the time that the stats DB was last updated.
  * @return int
  */
