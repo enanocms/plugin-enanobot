@@ -23,7 +23,6 @@ function echo_event_privmsg($message)
     $channel_name =& $match[1];
     if ( isset($libirc_channels[$channel_name]) && is_object($libirc_channels[$channel_name]) )
     {
-      echo "!!! {$match[2]}\n";
       $libirc_channels[$channel_name]->msg(eb_censor_words($match[2]), true);
     }
   }
