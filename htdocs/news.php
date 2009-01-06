@@ -11,6 +11,8 @@ require("./themes/$webtheme/header.php");
     }
     </style>
     <h1>Updates and changes</h1>
+    <h3>2009-01-05</h3>
+    <p>Added theme support.</p>
     <h3>2009-01-04</h3>
     <p>Added a last 60 minutes graph.</p>
     <h3>2008-12-24</h3>
