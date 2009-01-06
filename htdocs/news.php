@@ -1,18 +1,18 @@
 <?php
 require('../config.php');
+require('../stats-fe.php');
 
-?><html>
-  <head>
-    <title><?php echo $nick; ?> - updates</title>
-    <style type="text/css">
+$title = "$nick - updates";
+require("./themes/$webtheme/header.php");
+?>  <style type="text/css">
     p.code {
       font-family: monospace;
       margin-left: 1.5em;
     }
     </style>
-  </head>
-  <body>
     <h1>Updates and changes</h1>
+    <h3>2009-01-04</h3>
+    <p>Added a last 60 minutes graph.</p>
     <h3>2008-12-24</h3>
     <p><?php echo $nick; ?> now has modular graph support and thus is able to show different graphs. Included now are options for the last
        24 hours as before, plus the last two weeks and the last 30 days. More, of course, can be added if needed.</p>
@@ -23,5 +23,6 @@ require('../config.php');
        records after the import of the existing flat file database. It makes for a more portable programming technique and it means it can
        be easily expanded in the future to include more data. The table's indexed so it should be decently fast.</p>
     <p>In addition, smarter functionality is being included, plus a few bugs here and there have been fixed.</p>
-  </body>
-</head>
+<?php
+require("./themes/$webtheme/footer.php");
+?>

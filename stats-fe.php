@@ -14,6 +14,8 @@ require(ENANOBOT_ROOT . '/config.php');
 require(ENANOBOT_ROOT . '/hooks.php');
 require(ENANOBOT_ROOT . '/database.php');
 
+$webtheme = ( isset($webtheme) && is_dir(ENANOBOT_ROOT . "/htdocs/themes/$webtheme") ) ? $webtheme : 'generic';
+
 mysql_reconnect();
 
 /**

@@ -5,21 +5,10 @@ require('../timezone.php');
 $channel_list = stats_channel_list();
 $first_channel = $channel_list[0];
 $channel = ( isset($_REQUEST['channel']) && in_array($_REQUEST['channel'], $channel_list) ) ? $_REQUEST['channel'] : $first_channel;
-?>
 
-<html>
-  <head>
-    <title><?php echo $nick; ?> - Statistics</title>
-    <style type="text/css">
-    div.footer {
-      font-size: smaller;
-      padding-top: 10px;
-      margin-top: 10px;
-      border-top: 1px solid #aaa;
-    }
-    </style>
-  </head>
-  <body>
+$title = "$nick - Statistics";
+require("./themes/$webtheme/header.php");
+?>
     <div style="float: right;">
       <p>
         <?php
@@ -82,13 +71,12 @@ $channel = ( isset($_REQUEST['channel']) && in_array($_REQUEST['channel'], $chan
       }
       ?>
     </ul>
+    <h1>Last 60 minutes</h1>
+    <img alt="Graph image" src="graph.php?mode=lasthour&amp;channel=<?php echo urlencode($channel); ?>" />
     <h1>Last 24 hours</h1>
     <img alt="Graph image" src="graph.php?mode=lastday&amp;channel=<?php echo urlencode($channel); ?>" />
     <h1>Last 2 weeks</h1>
     <img alt="Graph image" src="graph.php?mode=lastweek&amp;channel=<?php echo urlencode($channel); ?>" />
-    
-    <div class="footer">
-    <b><?php echo $nick; ?> is a privacy-respecting bot.</b> <a href="privacy.php">Read about what information <?php echo $nick; ?> collects</a>
-    </div>
-  </body>
-</head>
+<?php
+require("./themes/$webtheme/footer.php");
+

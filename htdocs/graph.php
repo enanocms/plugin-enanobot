@@ -9,6 +9,8 @@ $channel = ( isset($_REQUEST['channel']) && in_array($_REQUEST['channel'], $chan
 
 function makeGraph($type = 'bar')
 {
+  global $webtheme;
+  
   $class = ( $type == 'line' ) ? 'LineGraph' : 'BarGraph';
   $g = new $class(); // _Compat();
   
@@ -33,6 +35,10 @@ function makeGraph($type = 'bar')
   $g->SetScaleRoundY(0);
   $g->SetScaleRoundX(0);
   $g->SetAxisStepSize(7);
+  
+  if ( file_exists("./themes/$webtheme/graph_$type.def") )
+    $g->LoadGraph(realpath("./themes/$webtheme/graph_$type.def"));
+  
   return $g;
 }
 

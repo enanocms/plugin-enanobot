@@ -766,7 +766,7 @@
           $this->$func($settings);
         }
       }
-      if (is_array($data['data'])) {
+      if (isset($data['data']) && is_array($data['data'])) {
         $this->data = $data['data'];
       }
     }

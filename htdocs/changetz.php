@@ -1,5 +1,6 @@
 <?php
 require('../timezone.php');
+require('../stats-fe.php');
 $set_zone = false;
 if ( isset($_POST['tz']) )
 {
@@ -11,46 +12,12 @@ if ( isset($_POST['tz']) )
     $set_zone = str_replace('_', ' ', str_replace('/', ': ', $tz));
   }
 }
-?><html>
-  <head>
-    <title>Change time zone</title>
-    <style type="text/css">
-    select, option {
-      background-color: white;
-    }
-    option.other {
-      color: black;
-      font-weight: normal;
-    }
-    option.region {
-      color: black;
-      font-weight: bold;
-    }
-    option.area {
-      color: black;
-      font-weight: normal;
-      padding-left: 1em;
-    }
-    option.country {
-      color: black;
-      font-weight: bold;
-      padding-left: 1em;
-    }
-    option.city {
-      color: black;
-      font-weight: normal;
-      padding-left: 2em;
-    }
-    div.success {
-      border: 1px solid #006300;
-      background-color: #d3ffd3;
-      padding: 10px;
-      margin: 10px 0;
-    }
-    </style>
-  </head>
-  <body>
-    <?php
+
+$title = "$nick - set time zone";
+require("./themes/$webtheme/header.php");
+
+echo '<br />';
+
     if ( $set_zone )
     {
       $target = rtrim(dirname($_SERVER['REQUEST_URI']), '/') . '/';
@@ -95,5 +62,7 @@ if ( isset($_POST['tz']) )
     <input type="submit" value="Save" /><br />
     <small>Make sure you have cookies enabled.</small>
     </form>
-  </body>
-</html>
+  
+<?php
+require("./themes/$webtheme/footer.php");
+?>
