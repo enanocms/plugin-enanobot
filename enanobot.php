@@ -189,7 +189,30 @@ function enanobot_privmsg_event($message)
     require('config.php');
     $GLOBALS['privileged_list'] = $privileged_list;
     $GLOBALS['alert_list'] = $alert_list;
-    $irc->privmsg($message['nick'], "Reloaded privileged_list and alert_list. privileged = " . str_replace("\n", '', print_r($privileged_list, true)) . "; alert = " . str_replace("\n", '', print_r($alert_list, true)));
+    $GLOBALS['channels'] = $channels;
+    print_r($channels);
+    $in = array();
+    foreach ( $irc->channels as $channel )
+    {
+      $channame = $channel->get_channel_name();
+      if ( !in_array($channame, $channels) )
+      {
+        $channel->part("Leaving");
+      }
+      else
+      {
+        $in[] = $channame;
+      }
+    }
+    unset($channel);
+    foreach ( $channels as $channel )
+    {
+      if ( !in_array($channel, $in) )
+      {
+        $GLOBALS[ preg_replace('/^(#|&)/', '', $channel) ] = $irc->join($channel, 'enanobot_channel_event');
+      }
+    }
+    $irc->privmsg($message['nick'], "Config has been reloaded.");
   }
   else if ( substr($message['message'], 0, 1) == "\x01" && substr($message['message'], -1) == "\x01" )
   {
