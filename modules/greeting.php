@@ -9,6 +9,9 @@ function greeting_event(&$chan, &$message)
   switch($message['action'])
   {
     case 'JOIN':
+      if ( $message['nick'] === $GLOBALS['nick'] )
+        break;
+      
       $wb = false;
       if ( isset($part_list[$message['nick']]) )
       {
