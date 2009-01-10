@@ -190,7 +190,6 @@ function enanobot_privmsg_event($message)
     $GLOBALS['privileged_list'] = $privileged_list;
     $GLOBALS['alert_list'] = $alert_list;
     $GLOBALS['channels'] = $channels;
-    print_r($channels);
     $in = array();
     foreach ( $irc->channels as $channel )
     {
