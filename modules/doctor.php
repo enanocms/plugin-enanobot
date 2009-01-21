@@ -33,7 +33,7 @@ function doctor_listen(&$chan, &$message)
   
   if ( isset($doctor[$message['nick']]) && $message['message'] != '!doctor' )
   {
-    $chan->msg(eb_censor_words($doctor[$message['nick']]->listen($message['message'])));
+    $chan->msg(eb_censor_words("{$message['nick']}: " . $doctor[$message['nick']]->listen($message['message'])));
   }
 }
 
