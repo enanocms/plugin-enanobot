@@ -49,10 +49,11 @@ function eb_mysql_query($sql, $conn = false)
       // alert everyone on the bot's alert list
       if ( is_object($irc) )
       {
-        global $alert_list;
-        foreach ( $alert_list as $nick )
+        global $permissions;
+        foreach ( $permissions as $nick => $perms )
         {
-          $irc->privmsg($nick, "MySQL query error: $m_e");
+          if ( check_permissions($nick, array('context' => 'alert')) )
+            $irc->privmsg($nick, "MySQL query error: $m_e");
         }
       }
       else

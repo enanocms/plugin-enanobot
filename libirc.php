@@ -256,6 +256,58 @@ class Request_IRC
   }
   
   /**
+   * Returns WHOIS information about a nick.
+   * @param string Nick
+   * @return array
+   */
+  
+  public function whois($nick)
+  {
+    static $cache = array();
+    if ( isset($cache[$nick]) )
+    {
+      if ( $cache[$nick]['time'] + 20 >= time() )
+      {
+        return $cache[$nick];
+      }
+    }
+    $this->put("WHOIS $nick\r\n");
+    $lines = array();
+    $return = array(
+        'identified' => false,
+        'time' => time()
+      );
+    while ( $line = $this->get(3) )
+    {
+      $lines[] = $line;
+      list(, $code) = explode(' ', $line);
+      $code = intval($code);
+      switch($code)
+      {
+        case 401:
+          return false;
+        case 311:
+          list(, , , $return['nick'], $return['user'], $return['host']) = explode(' ', $line);
+          $return['ircname'] = substr($line, strpos(substr($line, 1), ':') + 2);
+          break;
+        case 319:
+          $return['channels'] = explode(' ', substr($line, strpos(substr($line, 1), ':') + 2));
+          break;
+        case 307:
+        case 320:
+          if ( strstr($line, 'identified') )
+            $return['identified'] = true;
+          break;
+        case 318:
+          $cache[$nick] = $return;
+          return $return;
+      }
+    }
+    $cache[$nick] = $return;
+    return $return;
+  }
+  
+  /**
    * Parse bold (<b>...</b>) tags and color tags in a text into IRC speak, and process /me commands. Colors are <cyan>...</cyan>, specify background with <fg:bg>...</fgcolor:bgcolor>. Valid colors are white, black, navy, green, red, maroon, purple, orange, yellow, lime, teal, aqua, cyan, blue, pink, grey, and silver
    * @param string Text to filter
    * @return string

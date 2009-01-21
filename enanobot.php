@@ -75,6 +75,22 @@ require('libirc.php');
 require('hooks.php');
 require('config.php');
 require('database.php');
+require('permissions.php');
+
+if ( !isset($permissions) )
+{
+  foreach ( $privileged_list as $user )
+  {
+    $permissions[$user] = array('admin');
+  }
+  if ( isset($alert_list) )
+  {
+    foreach ( $alert_list as $user )
+    {
+      $permissions[$user] = array('admin', 'alert');
+    }
+  }
+}
 
 $enanobot_version = '0.5-unstable';
 
@@ -141,7 +157,7 @@ function enanobot_process_channel_message($sockdata, $chan, $message)
 {
   global $irc, $nick, $mysql_conn, $privileged_list;
   
-  if ( strpos($message['message'], $nick) && !in_array($message['nick'], $privileged_list) && $message['nick'] != $nick )
+  if ( strpos($message['message'], $nick) && !check_permissions($message['nick'], array('context' => 'channel', 'channel' => $chan->get_channel_name())) && $message['nick'] != $nick )
   {
     $target_nick =& $message['nick'];
     // $chan->msg("{$target_nick}, I'm only a bot. :-) You should probably rely on the advice of humans if you need further assistance.", true);
@@ -156,40 +172,47 @@ function enanobot_privmsg_event($message)
 {
   global $privileged_list, $irc, $nick;
   static $part_cache = array();
-  if ( in_array($message['nick'], $privileged_list) && $message['message'] == 'Suspend' && $message['action'] == 'PRIVMSG' )
+  if ( $message['message'] == 'Suspend' && $message['action'] == 'PRIVMSG' && check_permissions($message['nick'], array('context' => 'suspend'), false) )
   {
     foreach ( $irc->channels as $channel )
     {
       $part_cache[] = array($channel->get_channel_name(), $channel->get_handler());
-      $channel->msg("I've received a request from {$message['nick']} to stop responding to requests, messages, and activities. Don't forget to unsuspend me with /msg $nick Resume when finished.", true);
-      $channel->part("Logging and presence suspended by {$message['nick']}", true);
+      $channel->part("suspended by {$message['nick']}", true);
     }
   }
-  else if ( in_array($message['nick'], $privileged_list) && $message['message'] == 'Resume' && $message['action'] == 'PRIVMSG' )
+  else if ( $message['message'] == 'Resume' && $message['action'] == 'PRIVMSG' && check_permissions($message['nick'], array('context' => 'suspend'), false) )
   {
     global $nick;
     foreach ( $part_cache as $chan_data )
     {
       $chan_name = substr($chan_data[0], 1);
       $GLOBALS[$chan_name] = $irc->join($chan_data[0], $chan_data[1]);
-      $GLOBALS[$chan_name]->msg("Bot resumed by {$message['nick']}.", true);
+      $GLOBALS[$chan_name]->msg("(resumed by {$message['nick']})", true);
       $irc->privmsg('ChanServ', "OP {$chan_data[0]} $nick");
     }
     $part_cache = array();
   }
-  else if ( in_array($message['nick'], $privileged_list) && preg_match('/^Shutdown(?: (.+))?$/i', $message['message'], $match) && $message['action'] == 'PRIVMSG' )
+  else if ( preg_match('/^Shutdown(?: (.+))?$/i', $message['message'], $match) && $message['action'] == 'PRIVMSG' && check_permissions($message['nick'], array('context' => 'shutdown'), false) )
   {
     $GLOBALS['_shutdown'] = true;
     $quitmessage = empty($match[1]) ? "Remote bot shutdown requested by {$message['nick']}" : $match[1];
     $irc->close($quitmessage, true);
     return 'BREAK';
   }
-  else if ( in_array($message['nick'], $privileged_list) && preg_match('/^re(?:hash|load)?(?:config)?(?: |$)/', $message['message']) )
+  else if ( preg_match('/^re(?:hash|load)?(?:config)?(?: |$)/', $message['message']) && check_permissions($message['nick'], array('context' => 'rehash'), false) )
   {
+    $oldnick = $GLOBALS['nick'];
     require('config.php');
     $GLOBALS['privileged_list'] = $privileged_list;
     $GLOBALS['alert_list'] = $alert_list;
     $GLOBALS['channels'] = $channels;
+    $GLOBALS['permissions'] = $permissions;
+    if ( $nick != $oldnick )
+    {
+      $irc->change_nick($nick, $pass);
+      $GLOBALS['nick'] = $nick;
+      $GLOBALS['pass'] = $pass;
+    }
     $in = array();
     foreach ( $irc->channels as $channel )
     {

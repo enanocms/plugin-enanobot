@@ -15,7 +15,7 @@ function stats_handle_delete_request($chan, $message)
   if ( empty($targetuser) )
     $targetuser = $message['nick'];
   
-  if ( $targetuser != $message['nick'] && !in_array($message['nick'], $privileged_list) )
+  if ( $targetuser != $message['nick'] && !check_permissions($message['nick'], array('context' => 'deletestats')) )
   {
     $irc->privmsg($message['nick'], "Sorry, you need to be a moderator to delete statistics for users other than yourself.");
     return true;

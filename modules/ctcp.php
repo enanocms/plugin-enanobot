@@ -5,7 +5,7 @@ eb_hook('event_ctcp', 'handle_ctcp($ctcp, $params, $message);');
 function handle_ctcp($ctcp, $params, $message)
 {
   global $irc;
-  global $alert_list;
+  global $permissions;
   switch($ctcp)
   {
     case 'PING':
@@ -20,8 +20,9 @@ function handle_ctcp($ctcp, $params, $message)
       break;
   }
   $now = date('r');
-  foreach ( $alert_list as $alertme )
+  foreach ( $permissions as $alertme => $perms )
   {
-    $irc->privmsg($alertme, "Received CTCP \"$ctcp\" from {$message['nick']}, " . $now);
+    if ( check_permissions($alertme, array('context' => 'alert')) )
+      $irc->privmsg($alertme, "Received CTCP \"$ctcp\" from {$message['nick']}, " . $now);
   }
 }
